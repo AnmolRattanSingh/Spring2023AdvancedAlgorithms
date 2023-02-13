@@ -9,6 +9,7 @@ import math
 
 counter = itertools.count()
 
+
 class BBTreeNode():
     """
     Creates and handles a BBTreeNode object that can branch and bound
@@ -26,7 +27,7 @@ class BBTreeNode():
             using constraints, vars, and objective.
     """
 
-    def __init__(self, vars = [], constraints = [], objective='', prob=None):
+    def __init__(self, vars=[], constraints=[], objective='', prob=None):
         """
         Initializes BBTreeNode.
         """
@@ -35,7 +36,7 @@ class BBTreeNode():
         self.objective = objective
         self.prob = prob
 
-    def __deepcopy__(self, memodict={}):
+    def __deepcopy__(self, memo):
         """
         Deepcopies the picos problem.
         This overrides the system's deepcopy method bc it doesn't work
@@ -55,7 +56,7 @@ class BBTreeNode():
             self.prob (picos Problem object): problem created from
                 constraints, objective, and vars.
         """
-        prob=pic.Problem()
+        prob = pic.Problem()
         prob.add_list_of_constraints(self.constraints)
         prob.set_objective('max', self.objective)
         self.prob = prob
@@ -122,13 +123,9 @@ class BBTreeNode():
         bestres = -1e20
         # initialize bestnode_vars to the root vars
         bestnode_vars = root.vars
-
         while heap:
             # get the node with the best value so far
-            # _, _, cur = hq._heappop_max(heap)
             _, _, cur = hq.heappop(heap)
-            # print hq
-            print([x.value for x in cur.vars])
 
             # check if the current node is integral
             if cur.is_integral():
@@ -140,7 +137,7 @@ class BBTreeNode():
                 # if the node is not integral, we need to branch
                 # get the next branching variable
                 branch_var = None
-                for v in cur.vars[:-1]:
+                for v in cur.vars:
                     if abs(round(v.value) - float(v.value)) > 1e-4:
                         branch_var = v
                         break
@@ -151,40 +148,16 @@ class BBTreeNode():
                 # check if the first branch is feasible
                 try:
                     if n1.prob.solve(solver='cvxopt') != 'infeasible':
-                        hq.heappush(heap, (n1.objective.value, next(counter), n1))
+                        hq.heappush(
+                            heap, (bestres, next(counter), n1))
                 except:
                     pass
-
                 # check if the second branch is feasible
                 try:
                     if n2.prob.solve(solver='cvxopt') != 'infeasible':
-                        hq.heappush(heap, (n2.objective.value, next(counter), n2))
+                        hq.heappush(
+                            heap, (bestres, next(counter), n2))
                 except:
                     pass
-                # hq._heapify_max(heap)
-                print("---", [x[0] for x in list(heap)])
 
         return bestres, bestnode_vars
-
-if False:
-    x = RealVariable("x")
-    y = RealVariable("y")
-    z = RealVariable("z")
-    a= RealVariable("a")
-    b= RealVariable("b")
-    c = RealVariable("c")
-    vars = [x, y, a, b, c,  z]
-    objective = z
-    constraints = [z == 15*x + 20 *y + 18* a + 13 * b + 12* c, 18*x+10*y+21*a+11*b+11*c <= 50, x>= 0, y >= 0, a >= 0, b >= 0, c >= 0, x <= 1, y <= 1, a <= 1, b <= 1, c <= 1]
-    root = BBTreeNode(constraints = constraints, objective = objective, vars = vars)
-    res, sol_vars = root.bbsolve()
-else:
-    x = RealVariable("x")
-    y = RealVariable("y")
-    z = RealVariable("z")
-    vars = [x, y, z]
-    objective = z
-    constraints = [x+y <= 7, 12*x+ 5*y <= 60, x >= 0, y >=0, z == 80 * x + 45 * y]
-    root = BBTreeNode(constraints = constraints, objective = objective, vars = vars)
-    res, sol_vars = root.bbsolve()
-print(sol_vars)
